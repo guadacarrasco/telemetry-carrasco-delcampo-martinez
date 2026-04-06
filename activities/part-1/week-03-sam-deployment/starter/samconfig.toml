@@ -1,0 +1,12 @@
+# TODO: Configure deployment profiles for dev and prod
+# Each profile should specify:
+# - stack_name
+# - region
+# - capabilities
+# - parameter_overrides
+
+[default.deploy.parameters]
+stack_name = "f1-telemetry"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true

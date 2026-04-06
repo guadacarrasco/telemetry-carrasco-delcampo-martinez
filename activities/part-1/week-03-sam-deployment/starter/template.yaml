@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Week 3 - SAM Deep Dive
+
+# TODO: Add Parameters section
+# - Environment: dev or prod
+# - OpenF1BaseUrl: with default value
+
+# TODO: Add Globals section with shared function config
+# - Runtime, Timeout, MemorySize, Environment variables
+
+Resources:
+  F1Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev  # TODO: Use Environment parameter
+
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: f1-list-sessions  # TODO: Add environment suffix
+      Handler: handler.list_sessions
+      CodeUri: .
+      Runtime: python3.12  # TODO: Move to Globals
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions
+            Method: GET
+
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: f1-get-session  # TODO: Add environment suffix
+      Handler: handler.get_session
+      CodeUri: .
+      Runtime: python3.12  # TODO: Move to Globals
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}
+            Method: GET
+
+  IngestSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: f1-ingest-session  # TODO: Add environment suffix
+      Handler: handler.ingest_session
+      CodeUri: .
+      Runtime: python3.12  # TODO: Move to Globals
+      Timeout: 120  # TODO: Consider Globals vs override
+      MemorySize: 512
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}/ingest
+            Method: POST
+
+# TODO: Add Outputs section with API URL
