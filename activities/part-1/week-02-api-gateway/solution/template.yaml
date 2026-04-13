@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Week 2 - API Gateway
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        OPENF1_BASE_URL: "https://api.openf1.org"
+
+Resources:
+  F1Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.list_sessions
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions
+            Method: GET
+
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.get_session
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}
+            Method: GET
+
+  IngestSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.ingest_session
+      CodeUri: .
+      Timeout: 120
+      MemorySize: 512
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}/ingest
+            Method: POST
