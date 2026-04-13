@@ -1,4 +1,4 @@
 .idea
 .aws-sam/
-samconfig.toml
 env.json
+week-01-lambda-basics/solution/samconfig.toml
