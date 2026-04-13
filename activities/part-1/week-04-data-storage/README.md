@@ -20,8 +20,8 @@
 
 ### 1. Set up CDK project
 ```bash
-cd infra/cdk
-pip install aws-cdk-lib constructs
+cd activities/part-1/week-04-data-storage/solution
+pip install -r requirements.txt
 ```
 
 ### 2. Create DataStack
@@ -37,14 +37,18 @@ Create repository classes that use boto3 to interact with DynamoDB and S3.
 Use `AWS_ENDPOINT_URL` environment variable for LocalStack compatibility.
 
 ### 4. Create MessagingStack
-Define EventBridge rule that triggers every 5 seconds (disabled by default).
+Define EventBridge rule on a schedule (the solution uses `rate(1 minute)` — the minimum EventBridge allows; disabled by default).
 
 ### 5. Test with LocalStack
 ```bash
 cd localstack && make start && make init
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=us-east-1
 export AWS_ENDPOINT_URL=http://localhost:4566
-python -c "from repositories.session_repo import SessionRepository; print('OK')"
+cd ../activities/part-1/week-04-data-storage/solution && PYTHONPATH=. python -c "from repositories.session_repo import SessionRepository; print('OK')"
 ```
+For `make init`, install [aws-cdk-local](https://github.com/localstack/aws-cdk-local) (`pip install aws-cdk-local`) so `cdklocal` is on your PATH. If CDK/jsii cannot write to the default cache dir, set e.g. `export JSII_PACKAGE_CACHE=$PWD/.jsii-package-cache` before deploying.
 
 ## Key Concepts
 - **CDK vs SAM**: CDK uses real programming languages, SAM uses YAML templates
