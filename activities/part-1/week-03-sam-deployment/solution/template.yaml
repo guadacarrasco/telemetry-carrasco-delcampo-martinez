@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Week 3 - SAM Deep Dive
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Deployment environment
+  OpenF1BaseUrl:
+    Type: String
+    Default: https://api.openf1.org
+    Description: Base URL for the OpenF1 API
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        OPENF1_BASE_URL: !Ref OpenF1BaseUrl
+        ENVIRONMENT: !Ref Environment
+
+Resources:
+  F1Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub f1-list-sessions-${Environment}
+      Handler: handler.list_sessions
+      CodeUri: .
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions
+            Method: GET
+
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub f1-get-session-${Environment}
+      Handler: handler.get_session
+      CodeUri: .
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}
+            Method: GET
+
+  IngestSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub f1-ingest-session-${Environment}
+      Handler: handler.ingest_session
+      CodeUri: .
+      Timeout: 120
+      MemorySize: !If [IsProd, 1024, 512]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}/ingest
+            Method: POST
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${F1Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
