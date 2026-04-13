@@ -2,3 +2,15 @@
 .aws-sam/
 samconfig.toml
 env.json
+
+# CDK / Python
+**/cdk.out/
+**/.jsii-package-cache/
+**/.venv/
+**/__pycache__/
+*.pyc
+
+# LocalStack / local env
+localstack/.env
+.env
+.env.local
