@@ -1,27 +1,27 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Week 3 - SAM Deep Dive
+Description: Week 2 - API Gateway
 
-# TODO: Add Parameters section
-# - Environment: dev or prod
-# - OpenF1BaseUrl: with default value
-
-# TODO: Add Globals section with shared function config
-# - Runtime, Timeout, MemorySize, Environment variables
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        OPENF1_BASE_URL: "https://api.openf1.org"
 
 Resources:
   F1Api:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: dev  # TODO: Use Environment parameter
+      StageName: dev
 
   ListSessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-list-sessions  # TODO: Add environment suffix
       Handler: handler.list_sessions
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
       Events:
         Api:
           Type: Api
@@ -33,10 +33,8 @@ Resources:
   GetSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-get-session  # TODO: Add environment suffix
       Handler: handler.get_session
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
       Events:
         Api:
           Type: Api
@@ -48,11 +46,9 @@ Resources:
   IngestSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-ingest-session  # TODO: Add environment suffix
       Handler: handler.ingest_session
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
-      Timeout: 120  # TODO: Consider Globals vs override
+      Timeout: 120
       MemorySize: 512
       Events:
         Api:
@@ -61,5 +57,3 @@ Resources:
             RestApiId: !Ref F1Api
             Path: /sessions/{session_key}/ingest
             Method: POST
-
-# TODO: Add Outputs section with API URL
