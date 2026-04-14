@@ -11,3 +11,18 @@ __pycache__/
 *.pyo
 
 .idea
+.aws-sam/
+env.json
+
+# CDK / Python
+**/cdk.out/
+**/.jsii-package-cache/
+**/.venv/
+**/__pycache__/
+*.pyc
+
+# LocalStack / local env
+localstack/.env
+.env
+.env.local
+week-01-lambda-basics/solution/samconfig.toml

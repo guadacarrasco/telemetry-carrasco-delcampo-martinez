@@ -1,0 +1,15 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: dynamodb,s3,lambda,events,cloudformation,iam,sts,logs,s3control,ssm
+      DEBUG: "0"
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  localstack-data:
