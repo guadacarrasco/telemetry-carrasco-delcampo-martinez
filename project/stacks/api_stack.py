@@ -3,6 +3,7 @@ import os
 from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_apigateway as apigateway
 from aws_cdk import aws_dynamodb as dynamodb
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_s3 as s3
 from constructs import Construct
@@ -69,6 +70,14 @@ class ApiStack(Stack):
         driver_stats_table.grant_read_write_data(ingest_fn)
         laps_table.grant_read_write_data(ingest_fn)
         raw_bucket.grant_put(ingest_fn)
+
+        # Allow ingest Lambda to invoke itself asynchronously
+        ingest_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"],
+                resources=[ingest_fn.function_arn],
+            )
+        )
 
         sessions_table.grant_read_data(list_sessions_fn)
         driver_stats_table.grant_read_data(list_drivers_fn)

@@ -3,24 +3,74 @@ import os
 import sys
 import time
 
-# Allow running locally with the layer code on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "layer", "python"))
 
+import boto3
 import openf1_client
 from repositories import (
-    SessionRepository,
     DriverStatsRepository,
     LapsRepository,
     RawDataRepository,
+    SessionRepository,
 )
+from utils import error, ok
 
+
+# ── boto3 helpers ─────────────────────────────────────────────────────────────
+
+def _lambda_client():
+    kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+    endpoint = os.getenv("AWS_ENDPOINT_URL")
+    if endpoint:
+        kwargs["endpoint_url"] = endpoint
+    return boto3.client("lambda", **kwargs)
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def handler(event, context):
+    """Route between trigger mode (API Gateway) and process mode (async)."""
+    if event.get("_async"):
+        return _process(event["session_key"])
+    return _trigger(event, context)
+
+
+# ── Trigger: validate + kick off async invocation ─────────────────────────────
+
+def _trigger(event, context):
+    path_params = event.get("pathParameters") or {}
+    session_key_str = path_params.get("session_key")
+
+    if not session_key_str:
+        return error(400, "session_key is required")
+
+    try:
+        session_key = int(session_key_str)
+    except ValueError:
+        return error(400, "session_key must be an integer")
+
+    _lambda_client().invoke(
+        FunctionName=context.function_name,
+        InvocationType="Event",  # async — does not wait for result
+        Payload=json.dumps({"_async": True, "session_key": session_key}).encode(),
+    )
+
+    return {
+        "statusCode": 202,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(
+            {
+                "message": "Ingestion started",
+                "session_key": session_key,
+                "hint": f"Poll GET /sessions/{session_key}/drivers to check progress",
+            }
+        ),
+    }
+
+
+# ── Process: actual ingestion (runs async, no API Gateway timeout) ─────────────
 
 def _find_position_at_lap_start(position_records: list, lap_date_start: str):
-    """Return the driver's position at the moment a lap begins.
-
-    position_records must be sorted ascending by date.
-    Returns None if no matching record is found.
-    """
     if not position_records or not lap_date_start:
         return None
     last_position = None
@@ -32,24 +82,7 @@ def _find_position_at_lap_start(position_records: list, lap_date_start: str):
     return last_position
 
 
-def handler(event, context):
-    path_params = event.get("pathParameters") or {}
-    session_key_str = path_params.get("session_key")
-
-    if not session_key_str:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "session_key is required"}),
-        }
-
-    try:
-        session_key = int(session_key_str)
-    except ValueError:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "session_key must be an integer"}),
-        }
-
+def _process(session_key: int):
     session_repo = SessionRepository()
     driver_stats_repo = DriverStatsRepository()
     laps_repo = LapsRepository()
@@ -59,13 +92,10 @@ def handler(event, context):
     try:
         session = openf1_client.get_session(session_key)
     except Exception as e:
-        return {"statusCode": 502, "body": json.dumps({"error": f"OpenF1 session: {e}"})}
+        return {"ok": False, "error": f"OpenF1 session: {e}"}
 
     if not session:
-        return {
-            "statusCode": 404,
-            "body": json.dumps({"error": f"Session {session_key} not found in OpenF1"}),
-        }
+        return {"ok": False, "error": f"Session {session_key} not found"}
 
     raw_repo.put_json(f"sessions/{session_key}/session.json", session)
     session_repo.save(
@@ -85,7 +115,7 @@ def handler(event, context):
     try:
         drivers = openf1_client.get_drivers(session_key)
     except Exception as e:
-        return {"statusCode": 502, "body": json.dumps({"error": f"OpenF1 drivers: {e}"})}
+        return {"ok": False, "error": f"OpenF1 drivers: {e}"}
 
     raw_repo.put_json(f"sessions/{session_key}/drivers.json", drivers)
 
@@ -96,26 +126,23 @@ def handler(event, context):
         if driver_number is None:
             continue
 
-        # 3 — Per-driver data from OpenF1
         try:
             laps = openf1_client.get_laps(session_key, driver_number)
             car_data = openf1_client.get_car_data(session_key, driver_number)
             position_records = openf1_client.get_position(session_key, driver_number)
         except Exception:
             time.sleep(2)
-            continue  # skip driver on network error, don't abort full ingestion
+            continue
 
         prefix = f"sessions/{session_key}/drivers/{driver_number}"
         raw_repo.put_json(f"{prefix}/laps.json", laps)
         raw_repo.put_json(f"{prefix}/car_data.json", car_data)
         raw_repo.put_json(f"{prefix}/position.json", position_records)
 
-        # 4 — Speed stats from car_data
         speeds = [r["speed"] for r in car_data if r.get("speed") is not None]
         avg_speed = round(sum(speeds) / len(speeds), 2) if speeds else None
         max_speed = max(speeds) if speeds else None
 
-        # 5 — Lap stats (exclude pit-out laps from best-lap calculation)
         valid_laps = [
             lap
             for lap in laps
@@ -130,7 +157,6 @@ def handler(event, context):
             best_lap_duration = best["lap_duration"]
             best_lap_number = best["lap_number"]
 
-        # 6 — Save driver stats (with pre-computed fields)
         driver_stats_repo.save(
             {
                 "session_key": session_key,
@@ -146,14 +172,15 @@ def handler(event, context):
             }
         )
 
-        # 7 — Save each lap with position at lap start
         position_sorted = sorted(position_records, key=lambda r: r.get("date", ""))
 
         for lap in laps:
             lap_number = lap.get("lap_number")
             if lap_number is None:
                 continue
-            position = _find_position_at_lap_start(position_sorted, lap.get("date_start", ""))
+            position = _find_position_at_lap_start(
+                position_sorted, lap.get("date_start", "")
+            )
             laps_repo.save(
                 {
                     "session_driver": f"{session_key}#{driver_number}",
@@ -169,16 +196,6 @@ def handler(event, context):
             )
 
         drivers_ingested += 1
-        time.sleep(0.5)  # avoid OpenF1 rate limiting
+        time.sleep(0.5)
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps(
-            {
-                "ok": True,
-                "session_key": session_key,
-                "session_name": session.get("session_name"),
-                "drivers_ingested": drivers_ingested,
-            }
-        ),
-    }
+    return {"ok": True, "session_key": session_key, "drivers_ingested": drivers_ingested}
