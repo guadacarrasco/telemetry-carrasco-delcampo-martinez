@@ -4,7 +4,7 @@ services:
     ports:
       - "4566:4566"
     environment:
-      SERVICES: dynamodb,s3,lambda,events,cloudformation,iam,sts,logs,s3control,ssm
+      SERVICES: dynamodb,s3,lambda,sqs,events,cloudformation,iam,sts,logs,s3control,ssm
       DEBUG: "0"
       LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
     volumes:
