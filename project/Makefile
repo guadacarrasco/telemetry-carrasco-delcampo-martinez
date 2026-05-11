@@ -6,7 +6,7 @@ API_URL    ?= $(shell cat .api_url 2>/dev/null)
 
 # Install CDK dependencies
 install:
-	pip install -r requirements.txt
+	python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # Bootstrap CDK on LocalStack (run once)
 bootstrap:
