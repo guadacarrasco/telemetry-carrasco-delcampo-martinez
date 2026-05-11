@@ -6,6 +6,7 @@ from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_sqs as sqs
 from constructs import Construct
 
 
@@ -21,6 +22,7 @@ class ApiStack(Stack):
         driver_stats_table: dynamodb.ITable,
         laps_table: dynamodb.ITable,
         raw_bucket: s3.IBucket,
+        simulation_queue: sqs.IQueue,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -43,6 +45,7 @@ class ApiStack(Stack):
             "LAPS_TABLE": laps_table.table_name,
             "RAW_BUCKET": raw_bucket.bucket_name,
             "OPENF1_BASE_URL": "https://api.openf1.org",
+            "SIMULATION_QUEUE_URL": simulation_queue.queue_url,
         }
 
         def make_function(name: str, handler_dir: str, timeout_seconds: int = 30, memory: int = 256) -> lambda_.Function:
@@ -64,6 +67,7 @@ class ApiStack(Stack):
         list_drivers_fn = make_function("ListDriversFunction", "list_drivers")
         get_summary_fn = make_function("GetDriverSummaryFunction", "get_driver_summary")
         get_laps_fn = make_function("GetDriverLapsFunction", "get_driver_laps")
+        start_simulation_fn = make_function("StartSimulationFunction", "start_simulation", timeout_seconds=120, memory=512)
 
         # ── Permissions ────────────────────────────────────────────────────────
         sessions_table.grant_read_write_data(ingest_fn)
@@ -83,6 +87,19 @@ class ApiStack(Stack):
         driver_stats_table.grant_read_data(list_drivers_fn)
         driver_stats_table.grant_read_data(get_summary_fn)
         laps_table.grant_read_data(get_laps_fn)
+
+        sessions_table.grant_read_data(start_simulation_fn)
+        driver_stats_table.grant_read_data(start_simulation_fn)
+        laps_table.grant_read_data(start_simulation_fn)
+        simulation_queue.grant_send_messages(start_simulation_fn)
+
+        # Allow start_simulation Lambda to invoke itself asynchronously
+        start_simulation_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"],
+                resources=[start_simulation_fn.function_arn],
+            )
+        )
 
         # ── API Gateway ────────────────────────────────────────────────────────
         api = apigateway.RestApi(
@@ -121,5 +138,9 @@ class ApiStack(Stack):
         # /sessions/{session_key}/drivers/{driver_number}/laps
         laps = driver.add_resource("laps")
         laps.add_method("GET", apigateway.LambdaIntegration(get_laps_fn))
+
+        # /start-simulation
+        start_simulation = api.root.add_resource("start-simulation")
+        start_simulation.add_method("POST", apigateway.LambdaIntegration(start_simulation_fn))
 
         CfnOutput(self, "ApiUrl", value=api.url)

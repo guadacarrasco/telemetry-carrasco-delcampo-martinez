@@ -1,6 +1,7 @@
 from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_sqs as sqs
 from constructs import Construct
 
 
@@ -58,7 +59,15 @@ class DataStack(Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
         )
 
+        self.simulation_queue = sqs.Queue(
+            self,
+            "SimulationEventsQueue",
+            queue_name="f1_simulation_events",
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         CfnOutput(self, "SessionsTableName", value=self.sessions_table.table_name)
         CfnOutput(self, "DriverStatsTableName", value=self.driver_stats_table.table_name)
         CfnOutput(self, "LapsTableName", value=self.laps_table.table_name)
         CfnOutput(self, "RawBucketName", value=self.raw_bucket.bucket_name)
+        CfnOutput(self, "SimulationQueueUrl", value=self.simulation_queue.queue_url)
