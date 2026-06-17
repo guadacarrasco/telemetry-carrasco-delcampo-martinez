@@ -127,7 +127,7 @@ class MainStack(Stack):
             )
 
         # ── Lambda functions ────────────────────────────────────────────────────
-        ingest_fn = make_function("IngestSessionFunction", "ingest_session", timeout_seconds=120, memory=512)
+        ingest_fn = make_function("IngestSessionFunction", "ingest_session", timeout_seconds=600, memory=512)
         list_sessions_fn = make_function("ListSessionsFunction", "list_sessions")
         list_drivers_fn = make_function("ListDriversFunction", "list_drivers")
         get_summary_fn = make_function("GetDriverSummaryFunction", "get_driver_summary")

@@ -27,9 +27,99 @@
   "panels": [
     {
       "type": "stat",
+      "id": 10,
+      "title": "Circuit",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_session_info{session_key=\"$session_key\"}",
+          "legendFormat": "{{circuit}}, {{country}}",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 11,
+      "title": "Session Type",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_session_info{session_key=\"$session_key\"}",
+          "legendFormat": "{{session_type}}",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 12,
+      "title": "Date",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_session_info{session_key=\"$session_key\"}",
+          "legendFormat": "{{date_start}}",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
       "id": 1,
       "title": "Simulation Status",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -37,7 +127,7 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "orange", "value": null },
+              { "color": "blue", "value": null },
               { "color": "green", "value": 1 }
             ]
           },
@@ -45,7 +135,7 @@
             {
               "type": "value",
               "options": {
-                "0": { "text": "Idle", "color": "orange" },
+                "0": { "text": "Finished", "color": "blue" },
                 "1": { "text": "Running", "color": "green" }
               }
             }
@@ -74,7 +164,7 @@
       "type": "stat",
       "id": 2,
       "title": "Drivers Reporting",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -109,7 +199,7 @@
       "type": "stat",
       "id": 3,
       "title": "Leader",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -141,11 +231,14 @@
     {
       "type": "timeseries",
       "id": 4,
-      "title": "Race Positions Over Time (lower = better)",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 4 },
+      "title": "Race Positions Over Time",
+      "gridPos": { "h": 22, "w": 24, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
+          "min": 1,
+          "max": 20,
+          "decimals": 0,
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "stepAfter",
@@ -160,7 +253,7 @@
       },
       "options": {
         "tooltip": { "mode": "multi", "sort": "asc" },
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"], "sortBy": "Last *", "sortDesc": false }
       },
       "targets": [
         {
@@ -177,7 +270,7 @@
       "id": 7,
       "title": "Circuit Layout",
       "description": "Track outline from OpenF1 location data. Run ingest then start a simulation to load the circuit.",
-      "gridPos": { "h": 16, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 16, "w": 12, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -226,7 +319,7 @@
       "type": "bargauge",
       "id": 5,
       "title": "Current Laps Completed",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -259,7 +352,7 @@
       "type": "bargauge",
       "id": 6,
       "title": "Pit Stops",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {

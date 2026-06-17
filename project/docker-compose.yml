@@ -32,6 +32,7 @@ services:
       AWS_ENDPOINT_URL: http://host.docker.internal:4566
       LIVE_STATE_TABLE: f1_live_state
       SIMULATOR_STATE_TABLE: f1_simulator_state
+      SESSIONS_TABLE: f1_sessions
       RAW_BUCKET: f1telemetry-rawdatabucket57f26c03-4f21b295
       SCRAPE_INTERVAL_SECONDS: "5"
       METRICS_PORT: "8000"
