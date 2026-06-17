@@ -9,6 +9,14 @@ import boto3
 from repositories import DriverStatsRepository, LapsRepository, SessionRepository
 from utils import error, ok
 
+
+def _dynamodb_resource():
+    kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+    endpoint = os.getenv("AWS_ENDPOINT_URL")
+    if endpoint:
+        kwargs["endpoint_url"] = endpoint
+    return boto3.resource("dynamodb", **kwargs)
+
 SQS_MAX_DELAY_SECONDS = 900
 
 
@@ -56,6 +64,14 @@ def _trigger(event, context):
 
     if playback_seconds <= 0:
         return error(400, "playback_seconds must be greater than 0")
+
+    # Guard: reject if a simulation is already being processed by the container
+    simulator_table_name = os.getenv("SIMULATOR_STATE_TABLE")
+    if simulator_table_name:
+        table = _dynamodb_resource().Table(simulator_table_name)
+        existing = table.get_item(Key={"session_key": session_key}).get("Item")
+        if existing and existing.get("status") == "processing":
+            return error(409, f"Simulation for session {session_key} is already running. Wait for the consumer to finish.")
 
     _lambda_client().invoke(
         FunctionName=context.function_name,

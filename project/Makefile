@@ -1,4 +1,5 @@
-.PHONY: install bootstrap deploy ingest test-sessions test-drivers test-summary test-laps test all
+.PHONY: install bootstrap deploy ingest test-sessions test-drivers test-summary test-laps test all \
+        observability-up observability-down consumer-restart simulate
 
 SESSION_KEY ?= 9662
 DRIVER     ?= 1
@@ -21,29 +22,56 @@ deploy: install
 # Trigger session ingestion (async - returns 202 immediately)
 ingest:
 	@echo "Ingesting session $(SESSION_KEY)..."
-	curl -s -X POST $(API_URL)sessions/$(SESSION_KEY)/ingest | python3 -m json.tool
+	curl -sk -X POST $(API_URL)sessions/$(SESSION_KEY)/ingest | python3 -m json.tool
 
 # List available sessions
 test-sessions:
 	@echo "GET /sessions"
-	curl -s $(API_URL)sessions | python3 -m json.tool
+	curl -sk $(API_URL)sessions | python3 -m json.tool
 
 # List drivers of a session
 test-drivers:
 	@echo "GET /sessions/$(SESSION_KEY)/drivers"
-	curl -s $(API_URL)sessions/$(SESSION_KEY)/drivers | python3 -m json.tool
+	curl -sk $(API_URL)sessions/$(SESSION_KEY)/drivers | python3 -m json.tool
 
 # Driver summary (stats pre-computed during ingestion)
 test-summary:
 	@echo "GET /sessions/$(SESSION_KEY)/drivers/$(DRIVER)/summary"
-	curl -s $(API_URL)sessions/$(SESSION_KEY)/drivers/$(DRIVER)/summary | python3 -m json.tool
+	curl -sk $(API_URL)sessions/$(SESSION_KEY)/drivers/$(DRIVER)/summary | python3 -m json.tool
 
 # Driver laps with position per lap
 test-laps:
 	@echo "GET /sessions/$(SESSION_KEY)/drivers/$(DRIVER)/laps"
-	curl -s $(API_URL)sessions/$(SESSION_KEY)/drivers/$(DRIVER)/laps | python3 -m json.tool
+	curl -sk $(API_URL)sessions/$(SESSION_KEY)/drivers/$(DRIVER)/laps | python3 -m json.tool
 
 # Run all read endpoints (requires prior ingestion)
 test: test-sessions test-drivers test-summary test-laps
 
 all: deploy ingest test
+
+# ── Observability (Part 2) ──────────────────────────────────────────────────
+
+# Start full stack: LocalStack + f1-consumer + metrics-exporter + Prometheus + Grafana
+# Run 'make deploy' first so CDK tables and queue exist in LocalStack.
+observability-up:
+	docker compose up -d --build
+	@echo ""
+	@echo "Services running:"
+	@echo "  Grafana:    http://localhost:3000"
+	@echo "  Prometheus: http://localhost:9090"
+	@echo "  Metrics:    http://localhost:8000/metrics"
+	@echo "  LocalStack: http://localhost:4566"
+
+# Stop all containers (keeps volumes so data survives)
+observability-down:
+	docker compose down
+
+# Restart only the f1-consumer (call this before each new simulation)
+consumer-restart:
+	docker compose restart f1-consumer
+
+# Start a simulation: SESSION_KEY and MINUTES are configurable
+# Example: make simulate SESSION_KEY=9662 MINUTES=5
+MINUTES ?= 5
+simulate:
+	python3 run_race.py --session $(SESSION_KEY) --minutes $(MINUTES)

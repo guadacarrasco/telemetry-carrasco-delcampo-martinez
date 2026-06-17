@@ -62,6 +62,25 @@ class MainStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        live_state_table = dynamodb.Table(
+            self,
+            "LiveStateTable",
+            table_name="f1_live_state",
+            partition_key=dynamodb.Attribute(name="session_key", type=dynamodb.AttributeType.NUMBER),
+            sort_key=dynamodb.Attribute(name="driver_number", type=dynamodb.AttributeType.NUMBER),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        simulator_state_table = dynamodb.Table(
+            self,
+            "SimulatorStateTable",
+            table_name="f1_simulator_state",
+            partition_key=dynamodb.Attribute(name="session_key", type=dynamodb.AttributeType.NUMBER),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         lambdas_dir = os.path.join(os.path.dirname(__file__), "..", "lambdas")
         layer_python_dir = os.path.join(lambdas_dir, "layer", "python")
         build_dir = os.path.join(lambdas_dir, ".build")
@@ -74,6 +93,8 @@ class MainStack(Stack):
             "RAW_BUCKET": raw_bucket.bucket_name,
             "OPENF1_BASE_URL": "https://api.openf1.org",
             "SIMULATION_QUEUE_URL": simulation_queue.queue_url,
+            "LIVE_STATE_TABLE": live_state_table.table_name,
+            "SIMULATOR_STATE_TABLE": simulator_state_table.table_name,
         }
 
         def _bundle(handler_dir: str) -> str:
@@ -141,6 +162,11 @@ class MainStack(Stack):
             )
         )
 
+        simulator_state_table.grant_read_data(start_simulation_fn)
+
+        # ── Outputs ─────────────────────────────────────────────────────────────
+        # (live_state and simulator_state are accessed by containers via env vars)
+
         # ── API Gateway ─────────────────────────────────────────────────────────
         api = apigateway.RestApi(
             self,
@@ -182,3 +208,5 @@ class MainStack(Stack):
         CfnOutput(self, "LapsTableName", value=laps_table.table_name)
         CfnOutput(self, "RawBucketName", value=raw_bucket.bucket_name)
         CfnOutput(self, "SimulationQueueUrl", value=simulation_queue.queue_url)
+        CfnOutput(self, "LiveStateTableName", value=live_state_table.table_name)
+        CfnOutput(self, "SimulatorStateTableName", value=simulator_state_table.table_name)
