@@ -72,8 +72,6 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
         Key={"session_key": session_key, "driver_number": driver_number}
     ).get("Item", {})
 
-    prev_cumulative = _to_decimal(existing.get("cumulative_time", 0)) or Decimal("0")
-
     lap_duration = _to_decimal(body.get("lap_duration"))
 
     # laps_completed = highest lap_number seen (idempotent: re-running same sim stays at 58)
@@ -87,7 +85,12 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
         prev_pit_set.add(str(incoming_lap))
     pit_stops = len(prev_pit_set)
 
-    cumulative_time = prev_cumulative + (lap_duration if lap_duration is not None else Decimal("0"))
+    # cumulative_time = sum of lap_times map (lap_number → duration), idempotent.
+    # Stored as a DynamoDB map with string keys to avoid Decimal set issues.
+    prev_lap_times: dict = dict(existing.get("lap_times_map", {}))
+    if incoming_lap > 0 and lap_duration is not None:
+        prev_lap_times[str(incoming_lap)] = lap_duration
+    cumulative_time = sum(prev_lap_times.values(), Decimal("0"))
 
     item = {
         "session_key": session_key,
@@ -105,6 +108,7 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
         "laps_completed": laps_completed,
         "pit_stops_total": pit_stops,
         "pit_lap_set": prev_pit_set if prev_pit_set else None,
+        "lap_times_map": prev_lap_times if prev_lap_times else None,
         "cumulative_time": cumulative_time,
         "processed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }

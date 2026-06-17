@@ -173,10 +173,60 @@
       "transformations": []
     },
     {
+      "type": "xychart",
+      "id": 7,
+      "title": "Circuit Layout",
+      "description": "Track outline from OpenF1 location data. Run ingest then start a simulation to load the circuit.",
+      "gridPos": { "h": 16, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "blue", "mode": "fixed" },
+          "custom": { "pointSize": 4, "lineWidth": 0, "hideFrom": { "legend": true, "tooltip": false, "viz": false } }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "x",
+        "series": [{ "name": "y", "y": "y" }],
+        "mapping": "manual",
+        "dims": { "x": "x", "exclude": [] },
+        "tooltip": { "mode": "none" },
+        "legend": { "displayMode": "hidden" }
+      },
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns" } },
+        { "id": "joinByField", "options": { "byField": "idx", "mode": "outer" } },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": { "Value": "x", "Value 1": "y" },
+            "excludeByName": { "Time": true, "__name__": true, "session_key": true, "instance": true, "job": true }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_track_x{session_key=\"$session_key\"}",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{idx}}"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_track_y{session_key=\"$session_key\"}",
+          "instant": true,
+          "refId": "B",
+          "legendFormat": "{{idx}}"
+        }
+      ]
+    },
+    {
       "type": "bargauge",
       "id": 5,
       "title": "Current Laps Completed",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -209,7 +259,7 @@
       "type": "bargauge",
       "id": 6,
       "title": "Pit Stops",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {

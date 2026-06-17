@@ -24,3 +24,7 @@ class RawDataRepository:
             Body=json.dumps(payload, default=str).encode("utf-8"),
             ContentType="application/json",
         )
+
+    def get_json(self, key: str):
+        resp = self.client.get_object(Bucket=self.bucket, Key=key)
+        return json.loads(resp["Body"].read().decode("utf-8"))

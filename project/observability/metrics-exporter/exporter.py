@@ -14,15 +14,20 @@ Exposed metrics (all labeled with session_key, driver_number, acronym, team):
   f1_driver_laps_completed        — cumulative laps completed
   f1_driver_gap_to_leader_seconds — gap to race leader (by cumulative time)
   f1_simulation_active            — 1 if simulation is processing, 0 otherwise
+
+Track layout metrics (loaded once from S3 when a session becomes active):
+  f1_track_x{session_key, idx}   — X coordinate of track outline point N
+  f1_track_y{session_key, idx}   — Y coordinate of track outline point N
 """
 
+import json
 import os
 import sys
 import time
 from decimal import Decimal
 
 import boto3
-from boto3.dynamodb.conditions import Attr, Key
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from prometheus_client import Gauge, start_http_server
 
@@ -33,6 +38,7 @@ ENDPOINT = os.getenv("AWS_ENDPOINT_URL")
 REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 LIVE_TABLE = os.getenv("LIVE_STATE_TABLE", "f1_live_state")
 SIM_TABLE = os.getenv("SIMULATOR_STATE_TABLE", "f1_simulator_state")
+RAW_BUCKET = os.getenv("RAW_BUCKET", "f1-raw-data")
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "5"))
 PORT = int(os.getenv("METRICS_PORT", "8000"))
 
@@ -69,6 +75,12 @@ SIMULATION_ACTIVE = Gauge(
     "1 if simulation is currently processing, 0 otherwise",
     ["session_key"],
 )
+TRACK_X = Gauge("f1_track_x", "Track layout X coordinate", ["session_key", "idx"])
+TRACK_Y = Gauge("f1_track_y", "Track layout Y coordinate", ["session_key", "idx"])
+
+# Track layout state: loaded once from S3 per session, re-emitted every cycle.
+_track_session: int | None = None
+_track_points: list = []
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -92,9 +104,36 @@ def _f(value) -> float | None:
         return None
 
 
+# ── Track layout ────────────────────────────────────────────────────────────
+
+def _load_track_layout(s3_client, session_key: int) -> None:
+    global _track_session, _track_points
+    if _track_session == session_key:
+        return
+    try:
+        resp = s3_client.get_object(
+            Bucket=RAW_BUCKET,
+            Key=f"sessions/{session_key}/track_layout.json",
+        )
+        data = json.loads(resp["Body"].read().decode("utf-8"))
+        _track_points = data.get("points", [])
+        _track_session = session_key
+        print(f"[exporter] Track layout loaded: {len(_track_points)} points", flush=True)
+    except Exception as exc:
+        print(f"[exporter] Track layout unavailable: {exc}", file=sys.stderr, flush=True)
+        _track_points = []
+
+
+def _emit_track_metrics(session_key: int) -> None:
+    sk = str(session_key)
+    for i, pt in enumerate(_track_points):
+        TRACK_X.labels(session_key=sk, idx=str(i)).set(float(pt.get("x", 0)))
+        TRACK_Y.labels(session_key=sk, idx=str(i)).set(float(pt.get("y", 0)))
+
+
 # ── Core update ─────────────────────────────────────────────────────────────
 
-def update_metrics(live_table, sim_table) -> None:
+def update_metrics(live_table, sim_table, s3_client) -> None:
     # 1 — Find all sessions and their status
     try:
         sim_response = sim_table.scan()
@@ -113,8 +152,10 @@ def update_metrics(live_table, sim_table) -> None:
         if is_active:
             active_sessions.add(sk_int)
 
-    # 2 — Update driver metrics for each active session
+    # 2 — Update driver metrics and track layout for each active session
     for session_key in active_sessions:
+        _load_track_layout(s3_client, session_key)
+        _emit_track_metrics(session_key)
         sk_str = str(session_key)
         try:
             response = live_table.query(
@@ -179,13 +220,14 @@ def main() -> None:
     ddb = boto3.resource("dynamodb", **_boto_kwargs())
     live_table = ddb.Table(LIVE_TABLE)
     sim_table = ddb.Table(SIM_TABLE)
+    s3_client = boto3.client("s3", **_boto_kwargs())
 
     start_http_server(PORT)
     print(f"[exporter] /metrics available at http://0.0.0.0:{PORT}/metrics", flush=True)
 
     while True:
         try:
-            update_metrics(live_table, sim_table)
+            update_metrics(live_table, sim_table, s3_client)
         except Exception as exc:
             print(f"[exporter] Unexpected error: {exc}", file=sys.stderr, flush=True)
         time.sleep(SCRAPE_INTERVAL)

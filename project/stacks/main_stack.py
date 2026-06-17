@@ -104,12 +104,14 @@ class MainStack(Stack):
                 shutil.rmtree(out)
             shutil.copytree(os.path.join(lambdas_dir, handler_dir), out)
             for item in os.listdir(layer_python_dir):
+                if item.startswith("__"):
+                    continue  # skip __pycache__ and __init__ artifacts
                 src = os.path.join(layer_python_dir, item)
                 dst = os.path.join(out, item)
                 if os.path.isfile(src):
                     shutil.copy2(src, dst)
                 else:
-                    shutil.copytree(src, dst)
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
             return out
 
         def make_function(name: str, handler_dir: str, timeout_seconds: int = 30, memory: int = 256) -> lambda_.Function:
@@ -131,6 +133,7 @@ class MainStack(Stack):
         get_summary_fn = make_function("GetDriverSummaryFunction", "get_driver_summary")
         get_laps_fn = make_function("GetDriverLapsFunction", "get_driver_laps")
         start_simulation_fn = make_function("StartSimulationFunction", "start_simulation", timeout_seconds=120, memory=512)
+        get_track_layout_fn = make_function("GetTrackLayoutFunction", "get_track_layout")
 
         # ── Permissions ─────────────────────────────────────────────────────────
         sessions_table.grant_read_write_data(ingest_fn)
@@ -163,6 +166,8 @@ class MainStack(Stack):
         )
 
         simulator_state_table.grant_read_data(start_simulation_fn)
+
+        raw_bucket.grant_read(get_track_layout_fn)
 
         # ── Outputs ─────────────────────────────────────────────────────────────
         # (live_state and simulator_state are accessed by containers via env vars)
@@ -200,6 +205,9 @@ class MainStack(Stack):
 
         start_simulation = api.root.add_resource("start-simulation")
         start_simulation.add_method("POST", apigateway.LambdaIntegration(start_simulation_fn))
+
+        track_layout = session.add_resource("track-layout")
+        track_layout.add_method("GET", apigateway.LambdaIntegration(get_track_layout_fn))
 
         # ── Outputs ─────────────────────────────────────────────────────────────
         CfnOutput(self, "ApiUrl", value=api.url)

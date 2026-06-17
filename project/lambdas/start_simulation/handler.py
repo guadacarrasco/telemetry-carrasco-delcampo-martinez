@@ -1,13 +1,13 @@
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "layer", "python"))
 
 import boto3
 from repositories import DriverStatsRepository, LapsRepository, SessionRepository
-from utils import error, ok
+from utils import error
 
 
 def _dynamodb_resource():

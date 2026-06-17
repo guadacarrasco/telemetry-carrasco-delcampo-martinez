@@ -36,3 +36,21 @@ def get_position(session_key: int, driver_number: int) -> list:
 
 def get_car_data(session_key: int, driver_number: int) -> list:
     return _get("/v1/car_data", {"session_key": session_key, "driver_number": driver_number})
+
+
+def get_location(session_key: int, driver_number: int,
+                 date_gte: str = None, date_lt: str = None) -> list:
+    """Fetch car X/Y/Z positions. Optionally filter by date range (ISO 8601 strings).
+
+    OpenF1 uses non-standard '>=' and '<' in param names, so we build the URL
+    manually instead of using urlencode for those filters.
+    """
+    base = urllib.parse.urlencode({"session_key": session_key, "driver_number": driver_number})
+    url = f"{BASE_URL}/v1/location?{base}"
+    if date_gte:
+        url += f"&date>={date_gte}"
+    if date_lt:
+        url += f"&date<{date_lt}"
+    req = urllib.request.Request(url, headers={"User-Agent": "f1-telemetry/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))

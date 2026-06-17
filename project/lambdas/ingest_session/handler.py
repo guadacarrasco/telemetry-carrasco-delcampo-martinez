@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "layer", "python"))
 
@@ -13,7 +14,7 @@ from repositories import (
     RawDataRepository,
     SessionRepository,
 )
-from utils import error, ok
+from utils import error
 
 
 # ── boto3 helpers ─────────────────────────────────────────────────────────────
@@ -120,6 +121,8 @@ def _process(session_key: int):
     raw_repo.put_json(f"sessions/{session_key}/drivers.json", drivers)
 
     drivers_ingested = 0
+    first_driver_number: int | None = None
+    first_driver_lap1: dict | None = None
 
     for driver in drivers:
         driver_number = driver.get("driver_number")
@@ -195,7 +198,44 @@ def _process(session_key: int):
                 }
             )
 
+        # Capture first driver's lap 1 for track layout
+        if first_driver_number is None:
+            first_driver_number = driver_number
+            first_driver_lap1 = next(
+                (lap for lap in laps if lap.get("lap_number") == 1 and lap.get("date_start")),
+                None,
+            )
+
         drivers_ingested += 1
         time.sleep(0.5)
+
+    # Track layout: fetch location for first lap of first driver and save to S3.
+    # Non-fatal — if OpenF1 location data is unavailable we just skip.
+    if first_driver_number and first_driver_lap1:
+        try:
+            lap_dur = first_driver_lap1.get("lap_duration") or 120
+            dt_start = datetime.fromisoformat(
+                first_driver_lap1["date_start"].rstrip("Z")
+            ).replace(tzinfo=timezone.utc)
+            dt_end = dt_start + timedelta(seconds=float(lap_dur) + 10)
+            locations = openf1_client.get_location(
+                session_key,
+                first_driver_number,
+                date_gte=dt_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                date_lt=dt_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
+            if locations:
+                step = max(1, len(locations) // 200)
+                points = [
+                    {"x": int(r["x"]), "y": int(r["y"])}
+                    for r in locations[::step]
+                    if r.get("x") is not None and r.get("y") is not None
+                ]
+                raw_repo.put_json(
+                    f"sessions/{session_key}/track_layout.json",
+                    {"session_key": session_key, "points": points},
+                )
+        except Exception as exc:
+            print(f"[ingest] Track layout unavailable: {exc}")
 
     return {"ok": True, "session_key": session_key, "drivers_ingested": drivers_ingested}
