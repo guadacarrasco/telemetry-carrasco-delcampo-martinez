@@ -68,6 +68,7 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/live-race.json
+      GF_PANELS_DISABLE_SANITIZE_HTML: "true"
     depends_on:
       - prometheus
     restart: unless-stopped

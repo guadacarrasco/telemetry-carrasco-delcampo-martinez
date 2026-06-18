@@ -73,10 +73,10 @@ SIMULATION_ACTIVE = Gauge(
 )
 SESSION_INFO = Gauge(
     "f1_session_info", "Session metadata",
-    ["session_key", "circuit", "country", "session_type", "date_start"],
+    ["session_key", "circuit", "country", "session_type", "date_start", "year"],
 )
 
-_session_cache: dict = {}  # session_key → {circuit, country, session_type, date_start}
+_session_cache: dict = {}  # session_key → {circuit, country, session_type, date_start, year}
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -107,11 +107,15 @@ def _emit_session_info(sessions_table, session_key: int) -> None:
         try:
             resp = sessions_table.get_item(Key={"session_key": session_key})
             item = resp.get("Item", {})
+            date_start = str(item.get("date_start", ""))[:10]
+            raw_year = item.get("year")
+            year = str(int(raw_year)) if raw_year is not None else date_start[:4]
             _session_cache[sk_str] = {
                 "circuit": item.get("circuit", "Unknown"),
                 "country": item.get("country", ""),
                 "session_type": item.get("session_type", ""),
-                "date_start": str(item.get("date_start", ""))[:10],
+                "date_start": date_start,
+                "year": year,
             }
         except Exception as exc:
             print(f"[exporter] Session info unavailable: {exc}", file=sys.stderr, flush=True)
