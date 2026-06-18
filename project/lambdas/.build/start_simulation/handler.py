@@ -185,6 +185,8 @@ def _process(session_key: int, playback_seconds: int):
             "is_pit_out": bool(lap.get("is_pit_out", False)),
             "original_timestamp": str(lap.get("date_start", "")),
             "simulated_delay_seconds": delay_seconds,
+            "compound": lap.get("compound") or None,
+            "tyre_life_laps": int(lap["tyre_life_laps"]) if lap.get("tyre_life_laps") is not None else None,
         }
 
         sqs.send_message(

@@ -35,6 +35,7 @@ REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 LIVE_TABLE = os.getenv("LIVE_STATE_TABLE", "f1_live_state")
 SIM_TABLE = os.getenv("SIMULATOR_STATE_TABLE", "f1_simulator_state")
 SESSIONS_TABLE = os.getenv("SESSIONS_TABLE", "f1_sessions")
+LAPS_TABLE = os.getenv("LAPS_TABLE", "f1_laps")
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "5"))
 PORT = int(os.getenv("METRICS_PORT", "8000"))
 
@@ -77,6 +78,12 @@ SESSION_INFO = Gauge(
 )
 
 _session_cache: dict = {}  # session_key → {circuit, country, session_type, date_start, year}
+DRIVER_TYRE_LIFE = Gauge(
+    "f1_driver_tyre_life_laps",
+    "Laps on current tire set",
+    ["session_key", "driver_number", "acronym", "team", "compound"],
+)
+_tyre_compound_cache: dict = {}  # (sk_str, dn) → last known compound
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -126,7 +133,7 @@ def _emit_session_info(sessions_table, session_key: int) -> None:
 
 # ── Core update ─────────────────────────────────────────────────────────────
 
-def update_metrics(live_table, sim_table, sessions_table) -> None:
+def update_metrics(live_table, sim_table, sessions_table, laps_table) -> None:
     # 1 — Find all sessions and their status
     try:
         sim_response = sim_table.scan()
@@ -203,6 +210,30 @@ def update_metrics(live_table, sim_table, sessions_table) -> None:
             gap = max(0.0, cumulative - (leader_cumulative or 0.0))
             DRIVER_GAP.labels(**lbl).set(gap)
 
+            laps_done = int(d.get("laps_completed", 0))
+            if laps_done > 0:
+                try:
+                    lap_resp = laps_table.get_item(
+                        Key={"session_driver": f"{session_key}#{int(dn)}", "lap_number": laps_done}
+                    )
+                    lap_item = lap_resp.get("Item", {})
+                    compound = str(lap_item.get("compound") or "")
+                    tyre_life = int(lap_item.get("tyre_life_laps") or 0)
+                    if compound:
+                        cache_key = (sk_str, dn)
+                        prev = _tyre_compound_cache.get(cache_key)
+                        if prev and prev != compound:
+                            try:
+                                DRIVER_TYRE_LIFE.remove(sk_str, dn, acronym, team, prev)
+                            except Exception:
+                                pass
+                        _tyre_compound_cache[cache_key] = compound
+                        DRIVER_TYRE_LIFE.labels(
+                            session_key=sk_str, driver_number=dn, acronym=acronym, team=team, compound=compound
+                        ).set(tyre_life)
+                except Exception:
+                    pass
+
 
 # ── Entry point ─────────────────────────────────────────────────────────────
 
@@ -213,13 +244,14 @@ def main() -> None:
     live_table = ddb.Table(LIVE_TABLE)
     sim_table = ddb.Table(SIM_TABLE)
     sessions_table = ddb.Table(SESSIONS_TABLE)
+    laps_table = ddb.Table(LAPS_TABLE)
 
     start_http_server(PORT)
     print(f"[exporter] /metrics available at http://0.0.0.0:{PORT}/metrics", flush=True)
 
     while True:
         try:
-            update_metrics(live_table, sim_table, sessions_table)
+            update_metrics(live_table, sim_table, sessions_table, laps_table)
         except Exception as exc:
             print(f"[exporter] Unexpected error: {exc}", file=sys.stderr, flush=True)
         time.sleep(SCRAPE_INTERVAL)

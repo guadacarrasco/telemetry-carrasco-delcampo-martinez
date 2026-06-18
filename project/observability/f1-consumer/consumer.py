@@ -105,6 +105,8 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
         "sector_2": _to_decimal(body.get("sector_2")),
         "sector_3": _to_decimal(body.get("sector_3")),
         "is_pit_out": bool(body.get("is_pit_out", False)),
+        "compound": body.get("compound") or None,
+        "tyre_life_laps": int(body["tyre_life_laps"]) if body.get("tyre_life_laps") is not None else None,
         "laps_completed": laps_completed,
         "pit_stops_total": pit_stops,
         "pit_lap_set": prev_pit_set if prev_pit_set else None,

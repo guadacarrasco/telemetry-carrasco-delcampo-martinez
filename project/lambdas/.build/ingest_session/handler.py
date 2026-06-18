@@ -195,6 +195,8 @@ def _process(session_key: int):
                     "sector_3": lap.get("duration_sector_3"),
                     "is_pit_out": lap.get("is_pit_out_lap", False),
                     "date_start": lap.get("date_start", ""),
+                    "compound": lap.get("compound") or None,
+                    "tyre_life_laps": lap.get("tyre_life_laps"),
                 }
             )
 
