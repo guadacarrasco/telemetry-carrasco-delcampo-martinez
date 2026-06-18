@@ -81,21 +81,8 @@ SESSION_INFO = Gauge(
 SESSION_LAPS_TOTAL = Gauge(
     "f1_session_laps_total", "Total scheduled laps for the session", ["session_key"]
 )
-DRIVER_POSITION_DNF = Gauge(
-    "f1_driver_position_dnf",
-    "Final position for drivers who did not finish (DNF)",
-    _DRIVER_LABELS,
-)
-DRIVER_DNS = Gauge(
-    "f1_driver_dns",
-    "1 for drivers who did not start (DNS)",
-    _DRIVER_LABELS,
-)
-
 _session_cache: dict = {}  # session_key → {circuit, country, session_type, date_start, year}
 _total_laps_cache: dict = {}  # session_key → int total laps (cached after first query)
-_dnf_cache: dict = {}  # session_key → [{dn, acronym, team, position}]
-_dns_cache: dict = {}  # session_key → [{dn, acronym, team}]
 DRIVER_TYRE_LIFE = Gauge(
     "f1_driver_tyre_life_laps",
     "Laps on current tire set",
@@ -145,68 +132,6 @@ def _emit_session_laps_total(driver_stats_table, session_key: int) -> None:
         SESSION_LAPS_TOTAL.labels(session_key=sk_str).set(total)
 
 
-def _emit_dnf_dns(live_table, driver_stats_table, session_key: int) -> None:
-    sk_str = str(session_key)
-    if sk_str in _dnf_cache:
-        for d in _dnf_cache[sk_str]:
-            DRIVER_POSITION_DNF.labels(session_key=sk_str, driver_number=d["dn"], acronym=d["acronym"], team=d["team"]).set(d["position"])
-        for d in _dns_cache.get(sk_str, []):
-            DRIVER_DNS.labels(session_key=sk_str, driver_number=d["dn"], acronym=d["acronym"], team=d["team"]).set(1)
-        return
-
-    try:
-        live_resp = live_table.query(KeyConditionExpression=Key("session_key").eq(session_key))
-        drivers = live_resp.get("Items", [])
-    except Exception as exc:
-        print(f"[exporter] DNF check failed: {exc}", file=sys.stderr, flush=True)
-        return
-
-    if not drivers:
-        return
-
-    max_laps = max(int(d.get("laps_completed", 0)) for d in drivers)
-    dnf_threshold = max_laps - 2
-
-    sorted_drivers = sorted(
-        drivers,
-        key=lambda d: (-int(d.get("laps_completed", 0)), float(_f(d.get("cumulative_time", 0)) or 0.0)),
-    )
-
-    dnf_entries = []
-    for rank, d in enumerate(sorted_drivers):
-        laps = int(d.get("laps_completed", 0))
-        if laps < dnf_threshold:
-            dn = str(int(d.get("driver_number", 0)))
-            acronym = d.get("acronym", "")
-            team = d.get("team_name", "")
-            position = rank + 1
-            dnf_entries.append({"dn": dn, "acronym": acronym, "team": team, "position": position})
-            DRIVER_POSITION_DNF.labels(session_key=sk_str, driver_number=dn, acronym=acronym, team=team).set(position)
-
-    _dnf_cache[sk_str] = dnf_entries
-
-    # DNS: drivers registered (in driver_stats) but never had lap data (total_laps = 0)
-    dns_entries = []
-    try:
-        stats_resp = driver_stats_table.query(KeyConditionExpression=Key("session_key").eq(session_key))
-        for d in stats_resp.get("Items", []):
-            if int(d.get("total_laps", 0) or 0) == 0:
-                dn = str(int(d.get("driver_number", 0)))
-                acronym = d.get("acronym", "")
-                team = d.get("team_name", "")
-                dns_entries.append({"dn": dn, "acronym": acronym, "team": team})
-                DRIVER_DNS.labels(session_key=sk_str, driver_number=dn, acronym=acronym, team=team).set(1)
-    except Exception as exc:
-        print(f"[exporter] DNS check failed: {exc}", file=sys.stderr, flush=True)
-
-    _dns_cache[sk_str] = dns_entries
-
-    if dnf_entries:
-        print(f"[exporter] DNF: {[d['acronym'] for d in dnf_entries]} (session {session_key})", flush=True)
-    if dns_entries:
-        print(f"[exporter] DNS: {[d['acronym'] for d in dns_entries]} (session {session_key})", flush=True)
-
-
 def _emit_session_info(sessions_table, session_key: int) -> None:
     global _session_cache
     sk_str = str(session_key)
@@ -243,7 +168,6 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
 
     sim_items = sim_response.get("Items", [])
     active_sessions: set[int] = set()
-    completed_sessions: set[int] = set()
 
     for item in sim_items:
         sk_int = int(item["session_key"])
@@ -254,8 +178,6 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
         _emit_session_laps_total(driver_stats_table, sk_int)
         if is_active:
             active_sessions.add(sk_int)
-        elif item.get("status") == "completed":
-            completed_sessions.add(sk_int)
 
     # 2 — Update driver metrics for each active session
     for session_key in active_sessions:
@@ -337,10 +259,6 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
                         ).set(tyre_life)
                 except Exception:
                     pass
-
-    # 3 — Emit DNF/DNS for completed sessions
-    for session_key in completed_sessions:
-        _emit_dnf_dns(live_table, driver_stats_table, session_key)
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────
