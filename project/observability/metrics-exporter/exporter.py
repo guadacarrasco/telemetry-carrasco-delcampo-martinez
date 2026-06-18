@@ -167,7 +167,7 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
         return
 
     sim_items = sim_response.get("Items", [])
-    active_sessions: set[int] = set()
+    known_sessions: set[int] = set()
 
     for item in sim_items:
         sk_int = int(item["session_key"])
@@ -176,11 +176,10 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
         SIMULATION_ACTIVE.labels(session_key=sk_str).set(1 if is_active else 0)
         _emit_session_info(sessions_table, sk_int)
         _emit_session_laps_total(driver_stats_table, sk_int)
-        if is_active:
-            active_sessions.add(sk_int)
+        known_sessions.add(sk_int)
 
-    # 2 — Update driver metrics for each active session
-    for session_key in active_sessions:
+    # 2 — Update driver metrics for all known sessions (active and completed)
+    for session_key in known_sessions:
         sk_str = str(session_key)
         try:
             response = live_table.query(
