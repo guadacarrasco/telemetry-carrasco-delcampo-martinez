@@ -132,7 +132,7 @@ class MainStack(Stack):
         list_drivers_fn = make_function("ListDriversFunction", "list_drivers")
         get_summary_fn = make_function("GetDriverSummaryFunction", "get_driver_summary")
         get_laps_fn = make_function("GetDriverLapsFunction", "get_driver_laps")
-        start_simulation_fn = make_function("StartSimulationFunction", "start_simulation", timeout_seconds=120, memory=512)
+        start_simulation_fn = make_function("StartSimulationFunction", "start_simulation", timeout_seconds=600, memory=512)
         get_track_layout_fn = make_function("GetTrackLayoutFunction", "get_track_layout")
 
         # ── Permissions ─────────────────────────────────────────────────────────

@@ -34,6 +34,7 @@ services:
       SIMULATOR_STATE_TABLE: f1_simulator_state
       SESSIONS_TABLE: f1_sessions
       LAPS_TABLE: f1_laps
+      DRIVER_STATS_TABLE: f1_driver_stats
       SCRAPE_INTERVAL_SECONDS: "5"
       METRICS_PORT: "8000"
     restart: unless-stopped

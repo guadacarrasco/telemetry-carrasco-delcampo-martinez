@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 
@@ -52,6 +53,25 @@ def _queue_url(sqs_client) -> str:
 
 
 # ── Message processing ──────────────────────────────────────────────────────
+
+def _clear_live_state(live_table, session_key: int) -> None:
+    """Delete all live state records for a session before a fresh simulation."""
+    try:
+        response = live_table.query(
+            KeyConditionExpression=Key("session_key").eq(session_key)
+        )
+        items = response.get("Items", [])
+        if items:
+            with live_table.batch_writer() as batch:
+                for item in items:
+                    batch.delete_item(Key={
+                        "session_key": int(item["session_key"]),
+                        "driver_number": int(item["driver_number"]),
+                    })
+            print(f"[consumer] Cleared {len(items)} stale records for session {session_key}", flush=True)
+    except Exception as exc:
+        print(f"[consumer] Failed to clear live state: {exc}", file=sys.stderr, flush=True)
+
 
 def _to_decimal(value) -> Decimal | None:
     if value is None:
@@ -121,6 +141,7 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
 
     # Mark simulation as processing on the first message of a new session
     if active_session != session_key:
+        _clear_live_state(live_table, session_key)
         sim_table.put_item(Item={
             "session_key": session_key,
             "status": "processing",

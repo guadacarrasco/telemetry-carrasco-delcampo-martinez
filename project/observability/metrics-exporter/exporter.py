@@ -36,6 +36,7 @@ LIVE_TABLE = os.getenv("LIVE_STATE_TABLE", "f1_live_state")
 SIM_TABLE = os.getenv("SIMULATOR_STATE_TABLE", "f1_simulator_state")
 SESSIONS_TABLE = os.getenv("SESSIONS_TABLE", "f1_sessions")
 LAPS_TABLE = os.getenv("LAPS_TABLE", "f1_laps")
+DRIVER_STATS_TABLE = os.getenv("DRIVER_STATS_TABLE", "f1_driver_stats")
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "5"))
 PORT = int(os.getenv("METRICS_PORT", "8000"))
 
@@ -77,7 +78,12 @@ SESSION_INFO = Gauge(
     ["session_key", "circuit", "country", "session_type", "date_start", "year"],
 )
 
+SESSION_LAPS_TOTAL = Gauge(
+    "f1_session_laps_total", "Total scheduled laps for the session", ["session_key"]
+)
+
 _session_cache: dict = {}  # session_key → {circuit, country, session_type, date_start, year}
+_total_laps_cache: dict = {}  # session_key → int total laps (cached after first query)
 DRIVER_TYRE_LIFE = Gauge(
     "f1_driver_tyre_life_laps",
     "Laps on current tire set",
@@ -107,6 +113,26 @@ def _f(value) -> float | None:
         return None
 
 
+def _emit_session_laps_total(driver_stats_table, session_key: int) -> None:
+    sk_str = str(session_key)
+    if sk_str not in _total_laps_cache:
+        try:
+            resp = driver_stats_table.query(
+                KeyConditionExpression=Key("session_key").eq(session_key)
+            )
+            total = max(
+                (int(s.get("total_laps", 0) or 0) for s in resp.get("Items", [])),
+                default=0,
+            )
+            if total > 0:
+                _total_laps_cache[sk_str] = total
+        except Exception as exc:
+            print(f"[exporter] Could not fetch total_laps: {exc}", file=sys.stderr, flush=True)
+    total = _total_laps_cache.get(sk_str, 0)
+    if total > 0:
+        SESSION_LAPS_TOTAL.labels(session_key=sk_str).set(total)
+
+
 def _emit_session_info(sessions_table, session_key: int) -> None:
     global _session_cache
     sk_str = str(session_key)
@@ -133,7 +159,7 @@ def _emit_session_info(sessions_table, session_key: int) -> None:
 
 # ── Core update ─────────────────────────────────────────────────────────────
 
-def update_metrics(live_table, sim_table, sessions_table, laps_table) -> None:
+def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_stats_table) -> None:
     # 1 — Find all sessions and their status
     try:
         sim_response = sim_table.scan()
@@ -150,6 +176,7 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table) -> None:
         is_active = item.get("status") == "processing"
         SIMULATION_ACTIVE.labels(session_key=sk_str).set(1 if is_active else 0)
         _emit_session_info(sessions_table, sk_int)
+        _emit_session_laps_total(driver_stats_table, sk_int)
         if is_active:
             active_sessions.add(sk_int)
 
@@ -168,17 +195,17 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table) -> None:
         if not drivers:
             continue
 
-        # Determine leader's cumulative time for gap calculation
-        leader_cumulative: float | None = None
-        for d in drivers:
-            if d.get("position") in (1, Decimal("1")):
-                leader_cumulative = _f(d.get("cumulative_time", 0))
-                break
-        if leader_cumulative is None:
-            # Fallback: use the minimum cumulative time across all drivers
-            times = [_f(d.get("cumulative_time")) for d in drivers]
-            valid = [t for t in times if t is not None]
-            leader_cumulative = min(valid) if valid else 0.0
+        # Rank by (laps_completed DESC, cumulative_time ASC): leader is index 0.
+        sorted_drivers = sorted(
+            drivers,
+            key=lambda d: (-int(d.get("laps_completed", 0)), float(_f(d.get("cumulative_time", 0)) or 0.0)),
+        )
+        computed_positions = {
+            str(int(d.get("driver_number", 0))): rank + 1
+            for rank, d in enumerate(sorted_drivers)
+        }
+
+        leader_cumulative = _f(sorted_drivers[0].get("cumulative_time", 0)) if sorted_drivers else 0.0
 
         for d in drivers:
             dn = str(int(d.get("driver_number", 0)))
@@ -186,9 +213,9 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table) -> None:
             team = d.get("team_name", "")
             lbl = dict(session_key=sk_str, driver_number=dn, acronym=acronym, team=team)
 
-            pos = _f(d.get("position"))
-            if pos is not None:
-                DRIVER_POSITION.labels(**lbl).set(pos)
+            computed_pos = computed_positions.get(dn)
+            if computed_pos is not None:
+                DRIVER_POSITION.labels(**lbl).set(computed_pos)
 
             lap = _f(d.get("lap_duration"))
             if lap is not None:
@@ -245,13 +272,14 @@ def main() -> None:
     sim_table = ddb.Table(SIM_TABLE)
     sessions_table = ddb.Table(SESSIONS_TABLE)
     laps_table = ddb.Table(LAPS_TABLE)
+    driver_stats_table = ddb.Table(DRIVER_STATS_TABLE)
 
     start_http_server(PORT)
     print(f"[exporter] /metrics available at http://0.0.0.0:{PORT}/metrics", flush=True)
 
     while True:
         try:
-            update_metrics(live_table, sim_table, sessions_table, laps_table)
+            update_metrics(live_table, sim_table, sessions_table, laps_table, driver_stats_table)
         except Exception as exc:
             print(f"[exporter] Unexpected error: {exc}", file=sys.stderr, flush=True)
         time.sleep(SCRAPE_INTERVAL)

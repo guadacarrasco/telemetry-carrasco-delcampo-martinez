@@ -142,36 +142,16 @@
       ]
     },
     {
-      "type": "stat",
+      "type": "text",
       "id": 2,
-      "title": "Current Lap",
+      "title": "",
       "transparent": true,
       "gridPos": { "h": 4, "w": 7, "x": 10, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
-        },
-        "overrides": []
-      },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "none",
-        "graphMode": "none",
-        "text": { "titleSize": 10, "valueSize": 26 }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max(f1_driver_laps_completed{session_key=\"$session_key\"})",
-          "legendFormat": "Current Lap",
-          "refId": "A",
-          "instant": true
-        }
-      ]
+        "mode": "html",
+        "content": "<div style=\"display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;gap:4px\"><span style=\"font-size:10px;color:#9fa7b3;text-transform:uppercase;letter-spacing:1px\">Current Lap</span><span id=\"f1cl\" style=\"font-size:26px;font-weight:500;color:#fff\">— / —</span></div><script>(function(){var sk='$session_key';var STALE=30;function q(e,maxAge){return fetch('/api/datasources/proxy/uid/prometheus/api/v1/query?query='+encodeURIComponent(e)).then(function(r){return r.json()}).then(function(d){var r=d&&d.data&&d.data.result;if(!r||r.length===0)return null;if(maxAge&&(Date.now()/1000-r[0].value[0])>maxAge)return null;return r[0].value[1];}).catch(function(){return null});}(function poll(){Promise.all([q('max(f1_driver_laps_completed{session_key=\"'+sk+'\"})',STALE),q('f1_session_laps_total{session_key=\"'+sk+'\"}'  )]).then(function(v){var cur=v[0]!==null?Math.round(v[0]):'—';var tot=v[1]!==null?Math.round(v[1]):'—';var el=document.getElementById('f1cl');if(el)el.textContent=cur+' / '+tot;});setTimeout(poll,5000);})();})();<\/script>",
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false }
+      }
     },
     {
       "type": "stat",
