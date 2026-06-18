@@ -249,7 +249,20 @@
           },
           "color": { "mode": "palette-classic" }
         },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Ferrari.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ED1131" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*McLaren.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F47600" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Red Bull.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#4781D7" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Mercedes.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00D7B6" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Aston Martin.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#229971" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Audi.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A9B4C2" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Williams.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1868DB" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Alpine.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00A1E8" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Racing Bulls.*|.*Visa Cash App.*|.*VCARB.*|\\(RB\\)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#6C98FF" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Haas.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#EB0A1E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Kick Sauber.*|.*Sauber.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#01C00E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Cadillac.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#909090" } }] }
+        ]
       },
       "options": {
         "tooltip": { "mode": "multi", "sort": "asc" },
@@ -266,60 +279,10 @@
       "transformations": []
     },
     {
-      "type": "xychart",
-      "id": 7,
-      "title": "Circuit Layout",
-      "description": "Track outline from OpenF1 location data. Run ingest then start a simulation to load the circuit.",
-      "gridPos": { "h": 16, "w": 12, "x": 0, "y": 30 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "fixedColor": "blue", "mode": "fixed" },
-          "custom": { "pointSize": 4, "lineWidth": 0, "hideFrom": { "legend": true, "tooltip": false, "viz": false } }
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "x",
-        "series": [{ "name": "y", "y": "y" }],
-        "mapping": "manual",
-        "dims": { "x": "x", "exclude": [] },
-        "tooltip": { "mode": "none" },
-        "legend": { "displayMode": "hidden" }
-      },
-      "transformations": [
-        { "id": "labelsToFields", "options": { "mode": "columns" } },
-        { "id": "joinByField", "options": { "byField": "idx", "mode": "outer" } },
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": { "Value": "x", "Value 1": "y" },
-            "excludeByName": { "Time": true, "__name__": true, "session_key": true, "instance": true, "job": true }
-          }
-        }
-      ],
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "f1_track_x{session_key=\"$session_key\"}",
-          "instant": true,
-          "refId": "A",
-          "legendFormat": "{{idx}}"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "f1_track_y{session_key=\"$session_key\"}",
-          "instant": true,
-          "refId": "B",
-          "legendFormat": "{{idx}}"
-        }
-      ]
-    },
-    {
       "type": "bargauge",
       "id": 5,
       "title": "Current Laps Completed",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -330,7 +293,20 @@
           },
           "min": 0
         },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Ferrari.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ED1131" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*McLaren.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F47600" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Red Bull.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#4781D7" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Mercedes.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00D7B6" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Aston Martin.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#229971" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Audi.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A9B4C2" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Williams.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1868DB" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Alpine.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00A1E8" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Racing Bulls.*|.*Visa Cash App.*|.*VCARB.*|\\(RB\\)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#6C98FF" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Haas.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#EB0A1E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Kick Sauber.*|.*Sauber.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#01C00E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Cadillac.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#909090" } }] }
+        ]
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
@@ -342,7 +318,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "f1_driver_laps_completed{session_key=\"$session_key\"}",
-          "legendFormat": "{{acronym}}",
+          "legendFormat": "{{acronym}} ({{team}})",
           "refId": "A",
           "instant": true
         }
@@ -352,7 +328,7 @@
       "type": "bargauge",
       "id": 6,
       "title": "Pit Stops",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -363,7 +339,20 @@
           },
           "min": 0
         },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Ferrari.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ED1131" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*McLaren.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F47600" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Red Bull.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#4781D7" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Mercedes.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00D7B6" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Aston Martin.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#229971" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Audi.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A9B4C2" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Williams.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1868DB" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Alpine.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00A1E8" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Racing Bulls.*|.*Visa Cash App.*|.*VCARB.*|\\(RB\\)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#6C98FF" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Haas.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#EB0A1E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Kick Sauber.*|.*Sauber.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#01C00E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Cadillac.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#909090" } }] }
+        ]
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
@@ -375,7 +364,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "f1_driver_pit_stops_total{session_key=\"$session_key\"}",
-          "legendFormat": "{{acronym}}",
+          "legendFormat": "{{acronym}} ({{team}})",
           "refId": "A",
           "instant": true
         }
