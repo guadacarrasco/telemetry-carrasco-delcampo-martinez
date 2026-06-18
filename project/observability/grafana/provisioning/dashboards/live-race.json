@@ -14,12 +14,21 @@
     "list": [
       {
         "name": "session_key",
-        "type": "textbox",
+        "type": "query",
         "label": "Session Key",
         "hide": 0,
-        "current": { "selected": true, "text": "9662", "value": "9662" },
-        "options": [{ "selected": true, "text": "9662", "value": "9662" }],
-        "query": "9662",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(f1_simulation_active, session_key)",
+        "query": {
+          "query": "label_values(f1_simulation_active, session_key)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "sort": 3,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
         "skipUrlSync": false
       },
       {
@@ -328,18 +337,6 @@
           "instant": true
         }
       ]
-    },
-    {
-      "type": "text",
-      "id": 7,
-      "title": "Tire Distribution",
-      "transparent": false,
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 42 },
-      "options": {
-        "mode": "html",
-        "content": "<div style=\"height:100%;padding:14px 20px;box-sizing:border-box;overflow:auto\"><div id=\"f1td\" style=\"display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap\"><span style=\"color:#6b7280;font-size:12px\">No tire data yet — run a simulation first</span></div></div><script>var COMP={SOFT:{bg:'#E8002D',fg:'#fff'},MEDIUM:{bg:'#FFC906',fg:'#1a1a1a'},HARD:{bg:'#E8E8E8',fg:'#1a1a1a'},INTERMEDIATE:{bg:'#39B54A',fg:'#fff',label:'INTER'},WET:{bg:'#0067FF',fg:'#fff'}};var TC={Ferrari:'#ED1131',McLaren:'#F47600','Red Bull':'#4781D7',Mercedes:'#00D7B6','Aston Martin':'#229971',Alpine:'#00A1E8',Williams:'#1868DB','Racing Bulls':'#6C98FF','Visa Cash':'#6C98FF',VCARB:'#6C98FF',Haas:'#EB0A1E',Sauber:'#01C00E',Cadillac:'#909090'};function tc(team){for(var k in TC)if(team&&team.indexOf(k)!==-1)return TC[k];return '#9fa7b3';}function render(data){var g={};data.forEach(function(s){var m=s.metric,cp=(m.compound||'UNKNOWN').toUpperCase(),ac=m.acronym||m.driver_number||'?',laps=parseInt(s.value[1])||0;if(!g[cp])g[cp]=[];g[cp].push({acronym:ac,team:m.team||'',laps:laps});});var ord=['SOFT','MEDIUM','HARD','INTERMEDIATE','WET'];var keys=ord.filter(function(k){return g[k];}).concat(Object.keys(g).filter(function(k){return ord.indexOf(k)===-1&&g[k];}));if(!keys.length)return;var html='';keys.forEach(function(cp){var cfg=COMP[cp]||{bg:'#6b7280',fg:'#fff'};var lbl=cfg.label||cp;var drv=g[cp].slice().sort(function(a,b){return a.acronym.localeCompare(b.acronym);});html+='<div style=\"display:flex;flex-direction:column;align-items:center;gap:10px;min-width:110px\">';html+='<div style=\"width:56px;height:56px;border-radius:50%;background:'+cfg.bg+';display:flex;align-items:center;justify-content:center\"><span style=\"font-size:22px;font-weight:700;color:'+cfg.fg+'\">'+drv.length+'</span></div>';html+='<span style=\"font-size:11px;color:#9fa7b3;font-weight:600;letter-spacing:1px;text-transform:uppercase\">'+lbl+'</span>';html+='<div style=\"display:flex;flex-wrap:wrap;gap:4px 10px;max-width:200px;justify-content:center\">';drv.forEach(function(d){html+='<span style=\"font-size:11px;font-weight:700;color:'+tc(d.team)+';white-space:nowrap\">'+d.acronym+' <span style=\"color:#6b7280;font-weight:400\">'+d.laps+'L</span></span>';});html+='</div></div>';});var el=document.getElementById('f1td');if(el)el.innerHTML=html;}(function poll(){fetch('/api/datasources/proxy/uid/prometheus/api/v1/query?query='+encodeURIComponent('f1_driver_tyre_life_laps{session_key=\"$session_key\"}'))  .then(function(r){return r.json();}).then(function(d){var r=d&&d.data&&d.data.result;if(Array.isArray(r)&&r.length)render(r);}).catch(function(){});setTimeout(poll,5000);})();<\/script>",
-        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false }
-      }
     }
   ]
 }
