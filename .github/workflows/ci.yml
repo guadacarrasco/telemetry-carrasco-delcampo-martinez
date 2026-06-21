@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: pip install -r requirements.txt
+      - run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
       - run: npm install -g aws-cdk
       - name: CDK Synth
         run: cdk synth
