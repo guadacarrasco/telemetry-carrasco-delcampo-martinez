@@ -137,6 +137,20 @@ def _process(session_key: int):
             time.sleep(2)
             continue
 
+        # Build lap→compound mapping from stints (/v1/laps never includes compound data)
+        lap_compound: dict[int, tuple] = {}
+        try:
+            stints = openf1_client.get_stints(session_key, driver_number)
+            for stint in stints:
+                compound = stint.get("compound") or ""
+                lap_start = int(stint.get("lap_start") or 1)
+                lap_end = int(stint.get("lap_end") or 9999)
+                age_at_start = int(stint.get("tyre_age_at_start") or 0)
+                for n in range(lap_start, lap_end + 1):
+                    lap_compound[n] = (compound, (n - lap_start) + age_at_start + 1)
+        except Exception:
+            pass
+
         prefix = f"sessions/{session_key}/drivers/{driver_number}"
         raw_repo.put_json(f"{prefix}/laps.json", laps)
         raw_repo.put_json(f"{prefix}/car_data.json", car_data)
@@ -195,8 +209,8 @@ def _process(session_key: int):
                     "sector_3": lap.get("duration_sector_3"),
                     "is_pit_out": lap.get("is_pit_out_lap", False),
                     "date_start": lap.get("date_start", ""),
-                    "compound": lap.get("compound") or None,
-                    "tyre_life_laps": lap.get("tyre_life_laps"),
+                    "compound": lap_compound.get(lap_number, (None, None))[0] or lap.get("compound") or None,
+                    "tyre_life_laps": lap_compound.get(lap_number, (None, None))[1] or lap.get("tyre_life_laps"),
                 }
             )
 

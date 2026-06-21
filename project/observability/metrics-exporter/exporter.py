@@ -90,6 +90,14 @@ DRIVER_TYRE_LIFE = Gauge(
 )
 _tyre_compound_cache: dict = {}  # (sk_str, dn) → last known compound
 
+# Run-change detection: maps session_key_str → (started_at, list of (sk, dn, acronym, team) tuples)
+_run_cache: dict[str, tuple[str, list[tuple[str, str, str, str]]]] = {}
+_DRIVER_GAUGES = (
+    DRIVER_POSITION, DRIVER_LAP_TIME, DRIVER_SECTOR1,
+    DRIVER_SECTOR2, DRIVER_SECTOR3, DRIVER_PIT_STOPS,
+    DRIVER_LAPS, DRIVER_GAP,
+)
+
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -178,6 +186,20 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
         _emit_session_laps_total(driver_stats_table, sk_int)
         known_sessions.add(sk_int)
 
+        # Detect new run: started_at changed → remove lingering gauges from previous run
+        started_at = str(item.get("started_at", ""))
+        cached = _run_cache.get(sk_str)
+        if cached and cached[0] != started_at:
+            for old_lbl in cached[1]:
+                for g in _DRIVER_GAUGES:
+                    try:
+                        g.remove(*old_lbl)
+                    except Exception:
+                        pass
+            _run_cache[sk_str] = (started_at, [])
+        elif not cached:
+            _run_cache[sk_str] = (started_at, [])
+
     # 2 — Update driver metrics for all known sessions (active and completed)
     for session_key in known_sessions:
         sk_str = str(session_key)
@@ -258,6 +280,13 @@ def update_metrics(live_table, sim_table, sessions_table, laps_table, driver_sta
                         ).set(tyre_life)
                 except Exception:
                     pass
+
+        # Update label cache for this session's current run
+        _run_cache[sk_str] = (
+            _run_cache.get(sk_str, ("", []))[0],
+            [(sk_str, str(int(d.get("driver_number", 0))), d.get("acronym", ""), d.get("team_name", ""))
+             for d in drivers],
+        )
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────

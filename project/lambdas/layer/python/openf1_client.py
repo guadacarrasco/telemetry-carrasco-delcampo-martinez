@@ -30,6 +30,10 @@ def get_laps(session_key: int, driver_number: int) -> list:
     return _get("/v1/laps", {"session_key": session_key, "driver_number": driver_number})
 
 
+def get_stints(session_key: int, driver_number: int) -> list:
+    return _get("/v1/stints", {"session_key": session_key, "driver_number": driver_number})
+
+
 def get_position(session_key: int, driver_number: int) -> list:
     return _get("/v1/position", {"session_key": session_key, "driver_number": driver_number})
 

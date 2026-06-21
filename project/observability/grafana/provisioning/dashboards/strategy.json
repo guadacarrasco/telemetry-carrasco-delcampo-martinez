@@ -132,6 +132,51 @@
     },
     {
       "type": "timeseries",
+      "id": 5,
+      "title": "Tyre Compound (laps on current set)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "spanNulls": true,
+            "showPoints": "never"
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Ferrari.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ED1131" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*McLaren.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F47600" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Red Bull.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#4781D7" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Mercedes.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00D7B6" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Aston Martin.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#229971" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Audi.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A9B4C2" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Williams.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1868DB" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Alpine.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#00A1E8" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Racing Bulls.*|.*Visa Cash App.*|.*VCARB.*|\\(RB\\)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#6C98FF" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Haas.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#EB0A1E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Kick Sauber.*|.*Sauber.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#01C00E" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Cadillac.*" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#909090" } }] }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "right", "limit": 10 }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "f1_driver_tyre_life_laps{session_key=\"$session_key\"}",
+          "legendFormat": "{{acronym}} ({{team}}) — {{compound}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
       "id": 4,
       "title": "Laps Completed Over Time",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },

@@ -154,6 +154,26 @@ def process_message(body: dict, live_table, sim_table, active_session: int | Non
 
 # ── Main loop ───────────────────────────────────────────────────────────────
 
+def _reset_stale_sessions(sim_table) -> None:
+    """On startup, mark any session stuck in 'processing' as 'completed'."""
+    try:
+        resp = sim_table.scan(
+            FilterExpression="#s = :v",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":v": "processing"},
+        )
+        for item in resp.get("Items", []):
+            sk = int(item["session_key"])
+            sim_table.put_item(Item={
+                "session_key": sk,
+                "status": "completed",
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+            print(f"[consumer] Reset stale session {sk}: processing → completed", flush=True)
+    except Exception as exc:
+        print(f"[consumer] Could not reset stale sessions: {exc}", file=sys.stderr, flush=True)
+
+
 def run() -> None:
     print("[consumer] Starting F1 consumer...", flush=True)
 
@@ -176,6 +196,8 @@ def run() -> None:
     if queue_url is None:
         print("[consumer] Could not resolve queue URL after retries. Exiting.", file=sys.stderr)
         sys.exit(1)
+
+    _reset_stale_sessions(sim_table)
 
     active_session: int | None = None
     last_message_time: float = time.time()
