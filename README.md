@@ -2,6 +2,9 @@
 
 A serverless backend that ingests real Formula 1 session data, simulates a race replay in compressed time, and streams live telemetry to a Grafana dashboard via Prometheus.
 
+<img width="2880" height="1626" alt="image" src="https://github.com/user-attachments/assets/2e798065-e27e-45cb-9264-411b82c5db4b" />
+
+
 Built with AWS CDK (Python), LocalStack, Docker, and the public [OpenF1 API](https://openf1.org).
 
 ---
